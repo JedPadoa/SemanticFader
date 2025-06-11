@@ -31,7 +31,7 @@ def custom_collate(batch):
 
 if __name__ == "__main__":
     #set device
-    device = torch.device('cpu')
+    device = torch.device(config.DEVICE)
     print(f"Using device: {device}")
     
     # Create dataset once

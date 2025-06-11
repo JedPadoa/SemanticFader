@@ -77,14 +77,13 @@ class AudioDataset(torch.utils.data.Dataset):
         self.allfeatures = allfeatures
         self.resampled_length = math.ceil((config.AUDIO_LENGTH * config.SAMPLING_RATE) / 
                                           (self.n_bands * np.prod(self.ratios)))
-        print(f'resampled length: {self.resampled_length}')
     
         wavs = []
         if audio_dir is not None:
             for folder in audio_dir.split(","):
                 for ext in ["*.wav", "*.aif"]:
                     wavs.extend(list(Path(folder).rglob(ext)))
-                    
+                   
         # Process and store chunks
         for wav in tqdm(wavs):
             output = preprocess_function(wav)

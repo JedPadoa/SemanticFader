@@ -2,8 +2,13 @@ from blocks.encoder import Encoder, VariationalEncoder
 from blocks.decoder import Generator
 from blocks.latent_discriminator import LatentDiscriminator
 from blocks.pqmf import PQMF
+import torch
 
 class Config:
+    
+    # attribute computation parameters
+    TEXTS = ['very fast footsteps', 'fast footsteps', 'footsteps']
+    
     # latent discriminator parameters
     NUM_ATTRIBUTES = 1
     NUM_CLASSES = 16
@@ -26,6 +31,7 @@ class Config:
     BATCH_SIZE = 2
     LEARNING_RATE = 1e-3
     BETA = 0.1  # For KL loss weighting
+    DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
     
     # STFT parameters
     STFT_SCALES = [2048, 1024, 512, 256, 128]

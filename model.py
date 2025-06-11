@@ -61,7 +61,6 @@ class JeffVAE(pl.LightningModule):
             mode='min',
             factor=0.5,
             patience=5,
-            verbose=True
         )
         
         # Return the optimizer and scheduler
@@ -120,7 +119,6 @@ class JeffVAE(pl.LightningModule):
     def training_step(self, batch):
         # Get input
         x, attributes, bin_values = batch
-        print(f'attributes shape: {attributes.shape}')
         
         if self.verbose:
             print("Input shapes:")
@@ -130,7 +128,6 @@ class JeffVAE(pl.LightningModule):
         
         # Encode input to get latent representation
         z, x_mb = self.encode(x)
-        print(f'z shape: {z.shape}')
         if self.verbose:
             print(f"\nAfter encode:")
             print(f"z: {z.shape}")
@@ -151,7 +148,6 @@ class JeffVAE(pl.LightningModule):
         if self.verbose:
             print(f'attributes shape: {attributes.shape}')
         # Quantize attributes
-        print(f'bin_values shape: {bin_values.shape}')
         attr_quantized = self.quantify(attributes, bin_values.clone().detach().to(self.device)).long()
         if self.verbose:
             print(f"\nAfter quantify:")
