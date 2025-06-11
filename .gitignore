@@ -1,0 +1,10 @@
+# Data
+all5hrs_footsteps/
+audio/
+checkpoints/
+lightning_logs/
+__pycache__/
+
+# OS
+.DS_Store
+.DS_Store?
