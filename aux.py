@@ -5,6 +5,7 @@ import torch.nn as nn
 import torchaudio
 from einops import rearrange
 import torch.fft as fft
+import numpy as np
 
 def mod_sigmoid(x):
     return 2 * torch.sigmoid(x)**2.3 + 1e-7
@@ -227,6 +228,35 @@ def _pad_to_multiple(x: torch.Tensor, multiple: int):
     length = x.shape[-1]
     padding_length = (multiple - (length % multiple)) % multiple
     return torch.nn.functional.pad(x, (0, padding_length))
+
+def dummy_load(name, target_length):
+    """
+    Preprocess function that takes one audio path, crops it to 6 seconds,
+    and returns it as 3 chunks of 2 seconds each (88200 samples per chunk at 44100 Hz).
+    """
+    # Load audio at 44.1kHz
+    x = li.load(name, sr=44100)[0]
+    #x = load_audio_mono(name)
+    
+    # Calculate padding needed to make length divisible by 16
+    remainder = target_length % 16
+    if remainder != 0:
+        padding = 16 - remainder
+        target_length += padding
+    
+    # Crop or pad to exactly target length
+    if len(x) > target_length:
+        x = x[:target_length]
+    elif len(x) < target_length:
+        x = np.pad(x, (0, target_length - len(x)))
+    
+    # Reshape into chunks
+    #x = x.reshape(int(config.AUDIO_LENGTH/2), -1)  # -1 will automatically calculate the correct chunk size
+    
+    if x.shape[0]:
+        return x
+    else:
+        return None
 
 
 

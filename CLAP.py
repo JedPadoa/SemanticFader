@@ -98,9 +98,9 @@ class CLAP:
     def subtract_embeddings(self, E_1, E_2):
         return torch.subtract(E_1, E_2)
     
-    def get_attribute_score(self, audio_file, descriptors, resampled_length):
+    def get_attribute_score(self, audio, descriptors, resampled_length):
         with torch.no_grad():  # Don't track gradients
-            audio_embed = torch.squeeze(self.get_audio_embedding(audio_file, sr=44100))
+            audio_embed = torch.squeeze(self.get_audio_embedding(audio, sr=44100))
             score = torch.dot(audio_embed, self.attr_vector)
             features = {}
             for desc in descriptors:
