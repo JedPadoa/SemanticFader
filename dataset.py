@@ -11,8 +11,9 @@ from scipy.io.wavfile import write as wavwrite
 from config import Config as config
 from aux import load_audio_mono
 import math
+from CLAP import CLAP
 
-folder_list = "audio"
+audio_dir = "footsteps_processed"
 sample_rate = config.SAMPLING_RATE
 descriptors = config.DESCRIPTORS
 
@@ -77,16 +78,24 @@ class AudioDataset(torch.utils.data.Dataset):
         self.allfeatures = allfeatures
         self.resampled_length = math.ceil((config.AUDIO_LENGTH * config.SAMPLING_RATE) / 
                                           (self.n_bands * np.prod(self.ratios)))
+        self.clap_model = CLAP(texts=config.TEXTS)
     
         wavs = []
         if audio_dir is not None:
             for folder in audio_dir.split(","):
                 for ext in ["*.wav", "*.aif"]:
                     wavs.extend(list(Path(folder).rglob(ext)))
-                   
+        print('processing wavs...')
+        """          
         # Process and store chunks
         for wav in tqdm(wavs):
             output = preprocess_function(wav)
+            if output is not None:
+                self.audio_chunks.append(output)
+        """ 
+        #process first 1000
+        for i in tqdm(range(500)):
+            output = preprocess_function(wavs[i])
             if output is not None:
                 self.audio_chunks.append(output)
         
@@ -121,10 +130,12 @@ class AudioDataset(torch.utils.data.Dataset):
             resampler = T.Resample(self.sr, 44100)
         for i in tqdm(indices):
             try:
-
-                features = compute_all_features(self.audio_chunks[i],
-                                       descriptors=self.descriptors,
-                                       resampled_length=self.resampled_length)
+                features = self.clap_model.get_attribute_score(torch.tensor(self.audio_chunks[i]), 
+                descriptors=self.descriptors,
+                resampled_length = self.resampled_length)
+                #features = compute_all_features(self.audio_chunks[i],
+                                       #descriptors=self.descriptors,
+                                       #resampled_length=self.resampled_length)
 
                 features = {
                     descr: features[descr]
@@ -135,10 +146,14 @@ class AudioDataset(torch.utils.data.Dataset):
 
                 self.allfeatures.append(feature_arr)
                 first = True
-            except:
+            except Exception as e:
                 # break
                 print('failed features compute')
                 print('index failure : ', i)
+                print('Error:', str(e))
+                import traceback
+                print('Full traceback:')
+                traceback.print_exc()
                 self.allfeatures.append(
                     np.zeros((len(self.descriptors),
                               self.latent_size)).astype(np.float32))
@@ -171,12 +186,7 @@ class AudioDataset(torch.utils.data.Dataset):
         
 if __name__ == "__main__":
     db = AudioDataset(
-        folder_list = folder_list,
+        audio_dir = audio_dir,
         sample_rate = sample_rate,
         descriptors = descriptors
     )
-    
-    for i in range(len(db)):
-        audio_data = db[i][0].flatten()  # flatten to 1D for wav
-        wavwrite(f"test_{i}.wav", sample_rate, audio_data.astype(np.float32))
-        print(f"Saved test_{i}.wav")

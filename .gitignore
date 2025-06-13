@@ -4,7 +4,11 @@ audio/
 checkpoints/
 lightning_logs/
 __pycache__/
+footsteps_processed/
 
 # OS
 .DS_Store
 .DS_Store?
+
+# scripts
+ds_preprocess.py

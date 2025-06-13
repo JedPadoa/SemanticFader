@@ -54,7 +54,7 @@ class CLAP:
             diffs.append(diff)
         
         self.attr_vector = F.normalize(torch.mean(torch.stack(diffs), dim=0), p=2, dim=0)
-        print(f'attr_vector shape: {self.attr_vector.shape}')
+        #print(f'attr_vector shape: {self.attr_vector.shape}')
 
     def get_audio_embedding(self, audio_data, sr):
         #audio_data, sr = crop_audio(audio_file)
@@ -98,11 +98,20 @@ class CLAP:
     def subtract_embeddings(self, E_1, E_2):
         return torch.subtract(E_1, E_2)
     
-    def get_attribute_score(self, audio_file):
-        audio_embed = torch.squeeze(self.get_audio_embedding(audio_file, sr=44100))
-        score = torch.dot(audio_embed, self.attr_vector)
+    def get_attribute_score(self, audio_file, descriptors, resampled_length):
+        with torch.no_grad():  # Don't track gradients
+            audio_embed = torch.squeeze(self.get_audio_embedding(audio_file, sr=44100))
+            score = torch.dot(audio_embed, self.attr_vector)
+            features = {}
+            for desc in descriptors:
+                features[desc] = torch.full((resampled_length,), score.item()).numpy()
+            
+            # Clear GPU cache if using CUDA
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            
+            return features
         
-        return score
     
     
 if __name__ == "__main__":

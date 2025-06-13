@@ -36,7 +36,7 @@ if __name__ == "__main__":
     
     # Create dataset once
     train_dataset = AudioDataset(
-        audio_dir='audio',
+        audio_dir='all5hrs_footsteps',
         sample_rate=config.SAMPLING_RATE,
         ratios=config.RATIOS,
         n_bands=config.N_BAND,
@@ -47,7 +47,7 @@ if __name__ == "__main__":
         train_dataset,
         batch_size=config.BATCH_SIZE,
         shuffle=True,
-        num_workers=0,
+        num_workers=8,
         pin_memory=True,
         collate_fn=custom_collate
     )
