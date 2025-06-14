@@ -107,12 +107,11 @@ class JeffVAE(pl.LightningModule):
         nz = allarr.shape[-1]
         allarr_cls = torch.zeros_like(allarr)
 
-        for i in range(allarr.shape[1]):
+        for i in range(allarr.shape[1]): 
             # Make both tensors contiguous
-            data = allarr[:, i, :].contiguous()  # Add .contiguous() here too
-            bins_slice = bins[i, 1:].contiguous()
-            data_cls = torch.bucketize(data, bins_slice, right=False)
-            allarr_cls[:, i, :] = data_cls
+            data = allarr[:, i, :].flatten() 
+            data_cls = torch.bucketize(data, bins[i, 1:], right=False)
+            allarr_cls[:, i, :] = data_cls.reshape(-1, nz)
 
         return allarr_cls
     

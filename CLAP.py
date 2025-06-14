@@ -102,10 +102,7 @@ class CLAP:
         with torch.no_grad():  # Don't track gradients
             audio_embed = torch.squeeze(self.get_audio_embedding(audio, sr=44100))
             score = torch.dot(audio_embed, self.attr_vector)
-            features = {}
-            for desc in descriptors:
-                features[desc] = torch.full((resampled_length,), score.item()).numpy()
-            
+            features = torch.full((resampled_length,), score.item()).numpy()
             # Clear GPU cache if using CUDA
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()

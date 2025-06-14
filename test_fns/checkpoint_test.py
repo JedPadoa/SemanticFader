@@ -7,7 +7,7 @@ from blocks.decoder import Generator
 from blocks.pqmf import PQMF
 from aux import AudioDistanceV1
 from config import Config as config
-from compute_features import compute_all_features
+from test_fns.compute_features import compute_all_features
 import numpy as np
 
 checkpoint_path = 'lightning_logs/version_0/checkpoints/epoch=9-step=10.ckpt'

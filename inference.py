@@ -3,7 +3,7 @@ import torchaudio
 from model import JeffVAE
 from aux import load_audio_mono, AudioDistanceV1
 from config import Config as config
-from compute_features import compute_all_features
+from test_fns.compute_features import compute_all_features
 import numpy as np
 
 class Model():

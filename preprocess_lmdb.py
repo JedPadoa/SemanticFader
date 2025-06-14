@@ -4,12 +4,11 @@ from pathlib import Path
 from tqdm import tqdm
 from config import Config as config                       # existing config
 from aux import dummy_load                       # your util
-from compute_features import compute_all_features  
 from CLAP import CLAP
 import os
 
-AUDIO_DIR   = Path("footsteps_processed")                # raw files
-DB_PATH     = "data/footsteps_db"                          # will be ~90 GB per 5 h 44.1 kHz
+AUDIO_DIR   = Path("audio")                # raw files
+DB_PATH     = "data/test_db"                          # will be ~90 GB per 5 h 44.1 kHz
 MAP_SIZE    = 1 << 40                                  # 1 TB – make it big once
 
 target_len  = int(config.AUDIO_LENGTH * config.SAMPLING_RATE)
@@ -21,6 +20,7 @@ env = lmdb.open(DB_PATH, map_size=MAP_SIZE)
 
 clap = CLAP(texts=config.TEXTS)
 
+print("computing features...")
 with env.begin(write=True) as txn:
     for idx, wav in enumerate(tqdm(list(AUDIO_DIR.rglob("*.wav")))):
         # ─── 1) AUDIO ────────────────────────────────────────────────
@@ -28,7 +28,6 @@ with env.begin(write=True) as txn:
         audio = audio.astype(np.float32)               # 1-D numpy
         
         # ─── 2) FEATURES ────────────────────────────────────────────
-        print("computing features...")
         feats = clap.get_attribute_score(audio=torch.tensor(audio), 
                 descriptors=config.DESCRIPTORS,
                 resampled_length = resampled_len)

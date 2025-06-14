@@ -5,16 +5,16 @@ from blocks.latent_discriminator import LatentDiscriminator
 import torch
 import pytorch_lightning as pl
 from aux import AudioDistanceV1
-from dataset import AudioDataset
+from dataset_lmdb import AudioDataset
 from model import JeffVAE
 from config import Config as config
 import torch.multiprocessing as mp
 import os
 from torch.utils.data import DataLoader
 # Set number of threads before any parallel operations
-os.environ["OMP_NUM_THREADS"] = "1"  # OpenMP threads
-os.environ["MKL_NUM_THREADS"] = "1"  # MKL threads
-torch.set_num_threads(1) 
+#os.environ["OMP_NUM_THREADS"] = "1"  # OpenMP threads
+#os.environ["MKL_NUM_THREADS"] = "1"  # MKL threads
+#torch.set_num_threads(1) 
 
 def custom_collate(batch):
     audios, features, bin_values = zip(*batch)
@@ -25,7 +25,7 @@ def custom_collate(batch):
     
     # bin_values should be the same for all samples, so just take the first one
     # This prevents it from being batched
-    bin_values = torch.tensor(bin_values[0])  # Take first sample's bin_values
+    bin_values = bin_values[0]  # Take first sample's bin_values
     
     return audios, features, bin_values
 
@@ -36,18 +36,16 @@ if __name__ == "__main__":
     
     # Create dataset once
     train_dataset = AudioDataset(
-        audio_dir='all5hrs_footsteps',
-        sample_rate=config.SAMPLING_RATE,
-        ratios=config.RATIOS,
-        n_bands=config.N_BAND,
-        descriptors=config.DESCRIPTORS
+        db_path='data/footsteps_db',
+        descriptors=config.DESCRIPTORS,
+        nb_bins=config.NUM_BINS
     )
     
     train_loader = DataLoader(
         train_dataset,
         batch_size=config.BATCH_SIZE,
         shuffle=True,
-        num_workers=8,
+        num_workers=4,
         pin_memory=True,
         collate_fn=custom_collate
     )
