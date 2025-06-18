@@ -5,6 +5,7 @@ checkpoints/
 lightning_logs/
 __pycache__/
 footsteps_processed/
+footsteps_speed_modified/
 data/*
 datasets_old/*
 
