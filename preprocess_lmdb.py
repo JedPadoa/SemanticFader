@@ -7,8 +7,8 @@ from aux import dummy_load                       # your util
 from CLAP import CLAP
 import os
 
-AUDIO_DIR   = Path("audio")                # raw files
-DB_PATH     = "data/test_db"                          # will be ~90 GB per 5 h 44.1 kHz
+AUDIO_DIR   = Path("footsteps_speed_modified")                # raw files
+DB_PATH     = "data/footsteps_sm_db"                          # will be ~90 GB per 5 h 44.1 kHz
 MAP_SIZE    = 1 << 40                                  # 1 TB – make it big once
 
 target_len  = int(config.AUDIO_LENGTH * config.SAMPLING_RATE)
