@@ -16,3 +16,6 @@ datasets_old/*
 # scripts
 ds_preprocess.py
 test_fns/*
+
+# ipynb
+.ipynb_checkpoints/

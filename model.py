@@ -44,34 +44,27 @@ class JeffVAE(pl.LightningModule):
         self.n_channels = n_channels
         self.verbose = verbose
         
-    def configure_optimizers(self):
-        # Get all parameters that need optimization
-        params = list(self.encoder.parameters()) + list(self.decoder.parameters())
+        # Enable manual optimization - REQUIRED for multiple optimizers
+        self.automatic_optimization = False
         
-        # Create optimizer
-        optimizer = torch.optim.Adam(
-            params,
+    def configure_optimizers(self):
+        # Main model optimizer (encoder + decoder)
+        main_params = list(self.encoder.parameters()) + list(self.decoder.parameters())
+        main_optimizer = torch.optim.Adam(
+            main_params,
             lr=self.learning_rate,
             betas=(0.5, 0.9)
         )
         
-        # Optional: Add learning rate scheduler
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer,
-            mode='min',
-            factor=0.5,
-            patience=5,
+        # Latent discriminator optimizer
+        lat_dis_optimizer = torch.optim.Adam(
+            self.latent_discriminator.parameters(),
+            lr=self.learning_rate,
+            weight_decay=1e-4
         )
         
-        # Return the optimizer and scheduler
-        return {
-            "optimizer": optimizer,
-            "lr_scheduler": {
-                "scheduler": scheduler,
-                "monitor": "loss",  # Monitor training loss
-                "frequency": 1  # Adjust learning rate every epoch
-            }
-        }
+        # Return as a list (no scheduler for now with manual optimization)
+        return [main_optimizer, lat_dis_optimizer]
     
     def train_dataloader(self):
         return self.train_loader
@@ -115,69 +108,111 @@ class JeffVAE(pl.LightningModule):
 
         return allarr_cls
     
-    def training_step(self, batch):
+    def training_step(self, batch, batch_idx):
+        # Get optimizers
+        main_opt, dis_opt = self.optimizers()
+        
+        x, attributes, bin_values = batch
+        
+        # ===== MAIN MODEL TRAINING =====
+        main_opt.zero_grad()
+        
+        self.latent_discriminator.eval()
+        self.encoder.train()
+        self.decoder.train()
+        
+        # Your existing main training logic
+        z, x_mb = self.encode(x)
+        z, kl_loss = self.encoder.reparametrize(z)
+        
+        # Get predictions from latent discriminator (for adversarial loss)
+        attr_preds = self.latent_discriminator(z)
+        attr_quantized = self.quantify(attributes, bin_values.clone().detach()).long()
+        lat_dis_loss = -self.get_attr_loss(attr_preds, attr_quantized)
+        
+        z_c = torch.cat([z, attributes], dim=1)
+        y, y_mb = self.decode(z_c)
+        y_mb = y_mb[..., :x_mb.shape[-1]]
+        
+        recon_loss = self.multiband_audio_distance(x_mb, y_mb)
+        
+        beta = 0.1
+        main_loss = recon_loss['spectral_distance'] + beta * kl_loss + lat_dis_loss
+        
+        # Manual backward and step
+        self.manual_backward(main_loss)
+        main_opt.step()
+        
+        # ===== LATENT DISCRIMINATOR TRAINING =====
+        dis_opt.zero_grad()
+        
+        self.encoder.eval()
+        self.decoder.eval()
+        self.latent_discriminator.train()
+        
+        # Encode (with no_grad since we don't want to update encoder)
+        with torch.no_grad():
+            z, _ = self.encode(x)
+            z, _ = self.encoder.reparametrize(z)
+        
+        attr_preds = self.latent_discriminator(z)
+        attr_quantized = self.quantify(attributes, bin_values.clone().detach()).long()
+        
+        # Discriminator wants to correctly classify attributes
+        dis_loss = self.get_attr_loss(attr_preds, attr_quantized)
+        
+        # Manual backward and step
+        self.manual_backward(dis_loss)
+        dis_opt.step()
+        
+        # Log metrics
+        self.log('loss', main_loss, prog_bar=True)
+        self.log('recon_loss', recon_loss['spectral_distance'], prog_bar=True)
+        self.log('kl_loss', kl_loss, prog_bar=True)
+        self.log('adv_loss', lat_dis_loss, prog_bar=True)
+        self.log('dis_loss', dis_loss, prog_bar=True)
+        
+        # Return main loss for logging purposes
+        return main_loss
+    
+    def validation_step(self, batch, batch_idx):
         # Get input
         x, attributes, bin_values = batch
         
-        if self.verbose:
-            print("Input shapes:")
-            print(f"x: {x.shape}")
-            print(f"attributes: {attributes.shape}")
-            print(f"bin_values: {bin_values.shape}")
-        
         # Encode input to get latent representation
         z, x_mb = self.encode(x)
-        if self.verbose:
-            print(f"\nAfter encode:")
-            print(f"z: {z.shape}")
-            print(f"x_mb: {x_mb.shape}")
         
         # Reparametrize to get latent vector and KL divergence loss
         z, kl_loss = self.encoder.reparametrize(z)
-        if self.verbose:    
-            print(f"\nAfter reparametrize:")
-            print(f"z: {z.shape}")
         
         # Get predictions from latent discriminator
         attr_preds = self.latent_discriminator(z)
-        if self.verbose:
-            print(f"\nAfter latent discriminator:")
-            print(f"attr_preds: {attr_preds.shape}")
         
-        if self.verbose:
-            print(f'attributes shape: {attributes.shape}')
         # Quantize attributes
-        attr_quantized = self.quantify(attributes, bin_values.clone().detach().to(self.device)).long()
-        if self.verbose:
-            print(f"\nAfter quantify:")
-            print(f"attr_quantized: {attr_quantized.shape}")
+        attr_quantized = self.quantify(attributes, bin_values.clone().detach()).long()
         
         # Calculate prediction loss
         pred_loss = self.get_attr_loss(attr_preds, attr_quantized)
-        if self.verbose:
-            print(f"\nAfter get_attr_loss:")
-            print(f"pred_loss: {pred_loss}")
         
         z_c = torch.cat([z, attributes], dim=1)
         # Decode latent vector back to audio
-        y, y_mb = self.decode(z_c)  # y_mb: [4, 16, 4096]
+        y, y_mb = self.decode(z_c)
         
         # Trim y_mb to match x_mb length
-        y_mb = y_mb[..., :x_mb.shape[-1]]  # Now y_mb will be [4, 16, 4000]
+        y_mb = y_mb[..., :x_mb.shape[-1]]
         
         # Calculate reconstruction loss using the multiband representations
         recon_loss = self.multiband_audio_distance(x_mb, y_mb)
-        if self.verbose:
-            print(f'recon_loss: {recon_loss}')
         
         # Combine losses
         beta = 0.1
-        total_loss = recon_loss['spectral_distance'] + beta * kl_loss
+        val_total_loss = recon_loss['spectral_distance']
         
-        # Log metrics
-        self.log('loss', total_loss, prog_bar=True)
-        self.log('recon_loss', recon_loss['spectral_distance'], prog_bar=True)
-        self.log('kl_loss', kl_loss, prog_bar=True)
+        # Log validation metrics
+        self.log('val_loss', val_total_loss, prog_bar=True, sync_dist=True)
+        self.log('val_recon_loss', recon_loss['spectral_distance'], prog_bar=True, sync_dist=True)
+        self.log('val_kl_loss', kl_loss, prog_bar=True, sync_dist=True)
+        self.log('val_pred_loss', pred_loss, prog_bar=True, sync_dist=True)
         
-        return total_loss
+        return val_total_loss
     

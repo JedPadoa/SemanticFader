@@ -32,6 +32,7 @@ class Config:
     LEARNING_RATE = 1e-3
     BETA = 0.1  # For KL loss weighting
     DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+    NUM_EPOCHS = 10
     
     # STFT parameters
     STFT_SCALES = [2048, 1024, 512, 256, 128]

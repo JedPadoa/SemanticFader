@@ -27,12 +27,12 @@ def custom_collate(batch):
 
 if __name__ == "__main__":
     #set device
-    device = torch.device('cpu')
+    device = torch.device('gpu')
     print(f"Using device: {device}")
     
     # Create dataset once
     full_dataset = AudioDataset(
-        db_path='data/test_db',
+        db_path='data/footsteps_db',
         descriptors=config.DESCRIPTORS,
         nb_bins=config.NUM_BINS
     )
@@ -77,11 +77,12 @@ if __name__ == "__main__":
     
      # Initialize trainer
     trainer = pl.Trainer(
-        max_epochs=10,
-        accelerator='cpu',  # Will automatically detect available hardware
+        max_epochs=config.NUM_EPOCHS,
+        accelerator='gpu',  # Will automatically detect available hardware
         devices=1,
         logger=True, 
-        log_every_n_steps=1# Add TensorBoard logging
+        log_every_n_steps=1,# Add TensorBoard logging
+        precision='16-mixed'
     )
     
     # Train the model
