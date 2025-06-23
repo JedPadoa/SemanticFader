@@ -17,6 +17,15 @@ datasets_old/*
 # scripts
 ds_preprocess.py
 test_fns/*
+training_scripts/*
+attr_score_analysis.py
 
 # ipynb
 .ipynb_checkpoints/
+
+#checkpoints
+*.ckpt
+checkpoint_test.ipynb
+
+#plots
+plots/*

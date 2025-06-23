@@ -11,7 +11,6 @@ soundfile>=0.10.0
 laion-clap
 
 # Data manipulation and numerical computing
-numpy>=1.20.0
 scipy>=1.7.0
 
 # Database and data handling
@@ -25,10 +24,3 @@ tqdm>=4.62.0
 
 # Cached convolutions (custom dependency)
 cached_conv
-
-# Additional utilities that may be needed
-pathlib2>=2.3.0
-pickle5>=0.0.11
-
-# For the change_speeds.py script I created
-argparse
