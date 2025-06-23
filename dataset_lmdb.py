@@ -4,10 +4,11 @@ import numpy as np
 from config import Config as config
 
 class AudioDataset(torch.utils.data.Dataset):
-    def __init__(self, db_path, descriptors, nb_bins):
+    def __init__(self, db_path, descriptors, attribute_name, nb_bins):
         self.db_path = db_path  # Store path instead of environment
         self.descriptors = descriptors
         self.nb_bins = nb_bins
+        self.attribute_name = attribute_name
         
         # Open environment temporarily to get length and compute bins
         env = lmdb.open(db_path, readonly=True, lock=False)
@@ -40,7 +41,7 @@ class AudioDataset(torch.utils.data.Dataset):
                     if key == b"__len__":
                         continue
                     sample = pickle.loads(value)
-                    feats = sample["feats"]
+                    feats = sample[self.attribute_name]
                     
                     data.extend(feats[:].flatten())
                     
@@ -66,10 +67,12 @@ class AudioDataset(torch.utils.data.Dataset):
             sample = pickle.loads(txn.get(f"{idx:08d}".encode()))
         
         audio = torch.tensor(sample["audio"], dtype=torch.float32)
-        feats = torch.tensor(sample["feats"], dtype=torch.float32).unsqueeze(0)
+        feats = torch.tensor(sample[self.attribute_name], dtype=torch.float32).unsqueeze(0)
         bins = torch.tensor(self.bin_values, dtype=torch.float32)
         return audio, feats, bins
     
 if __name__ == "__main__":
-    dataset = AudioDataset(db_path='data/test_db', descriptors=config.DESCRIPTORS, nb_bins=config.NUM_BINS)
+    dataset = AudioDataset(db_path='footsteps_sf_db_speed', descriptors=config.DESCRIPTORS, 
+    attribute_name='speed', nb_bins=config.NUM_BINS)
     print('bins shape: ', dataset[0][2].shape)
+    print('feats shape: ', dataset[0][1].shape)

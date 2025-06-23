@@ -8,6 +8,10 @@ footsteps_processed/
 footsteps_speed_modified/
 data/*
 datasets_old/*
+RCVs/*
+ffxFootstepsGenData/*
+footsteps_sf_db_speed/*
+footsteps_embeddings_full-hfclap/*
 
 
 # OS
@@ -19,6 +23,7 @@ ds_preprocess.py
 test_fns/*
 training_scripts/*
 attr_score_analysis.py
+/legacy/*
 
 # ipynb
 .ipynb_checkpoints/

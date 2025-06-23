@@ -24,3 +24,15 @@ tqdm>=4.62.0
 
 # Cached convolutions (custom dependency)
 cached_conv
+
+matplotlib
+
+numpy
+
+laion-clap
+
+scikit-learn
+
+lmdb
+
+transformers
