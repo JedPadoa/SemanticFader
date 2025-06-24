@@ -10,13 +10,14 @@ class AudioDataset(torch.utils.data.Dataset):
         self.nb_bins = nb_bins
         self.attribute_name = attribute_name
         
-        # Open environment temporarily to get length and compute bins
+        # Open environment temporarily to get length
         env = lmdb.open(db_path, readonly=True, lock=False)
         with env.begin() as txn:
             self.length = pickle.loads(txn.get(b"__len__"))
-        
-        self.bin_values = self._compute_bins()
         env.close()  # Close the environment
+
+        self.min_val, self.max_val = self._compute_min_max()
+        self.bin_values = self._compute_bins()
         
         # Don't store the environment as an instance variable
         self.env = None
@@ -28,11 +29,34 @@ class AudioDataset(torch.utils.data.Dataset):
         return self.env
 
     # ------------ helpers -----------------------------------------------------
+    def _compute_min_max(self):
+        print('computing min and max...')
+        env = lmdb.open(self.db_path, readonly=True, lock=False)
+        
+        min_val = float('inf')
+        max_val = float('-inf')
+
+        with env.begin() as txn:
+            cursor = txn.cursor()
+            for key, value in cursor:
+                if key == b"__len__":
+                    continue
+                sample = pickle.loads(value)
+                feats = sample[self.attribute_name]
+                min_val = min(min_val, np.min(feats))
+                max_val = max(max_val, np.max(feats))
+
+        env.close()
+        print(f'min: {min_val}, max: {max_val} computed')
+        return min_val, max_val
+
     def _compute_bins(self):
         print('computing bins...')
         env = lmdb.open(self.db_path, readonly=True, lock=False)
         
         all_values = []
+        delta = self.max_val - self.min_val
+
         for i, descr in enumerate(self.descriptors):
             data = []
             with env.begin() as txn:
@@ -41,13 +65,16 @@ class AudioDataset(torch.utils.data.Dataset):
                     if key == b"__len__":
                         continue
                     sample = pickle.loads(value)
-                    feats = sample[self.attribute_name]
+                    feats = np.array(sample[self.attribute_name], dtype=np.float32)
+
+                    if delta == 0:
+                        norm_feats = np.zeros_like(feats, dtype=np.float32)
+                    else:
+                        norm_feats = -1 + (feats - self.min_val) * 2 / delta
                     
-                    data.extend(feats[:].flatten())
+                    data.extend(norm_feats.flatten())
                     
             data = np.array(data, dtype=np.float32)
-            data[data < 0] = 0
-            data_true = data.copy()
             data.sort()
             index = np.linspace(0, len(data) - 2, self.nb_bins).astype(int)
             values = [data[j] for j in index]
@@ -67,7 +94,15 @@ class AudioDataset(torch.utils.data.Dataset):
             sample = pickle.loads(txn.get(f"{idx:08d}".encode()))
         
         audio = torch.tensor(sample["audio"], dtype=torch.float32)
-        feats = torch.tensor(sample[self.attribute_name], dtype=torch.float32).unsqueeze(0)
+        feats_np = np.array(sample[self.attribute_name], dtype=np.float32)
+        
+        delta = self.max_val - self.min_val
+        if delta == 0:
+            norm_feats_np = np.zeros_like(feats_np, dtype=np.float32)
+        else:
+            norm_feats_np = -1 + (feats_np - self.min_val) * 2 / delta
+            
+        feats = torch.from_numpy(norm_feats_np).unsqueeze(0)
         bins = torch.tensor(self.bin_values, dtype=torch.float32)
         return audio, feats, bins
     
@@ -75,4 +110,5 @@ if __name__ == "__main__":
     dataset = AudioDataset(db_path='footsteps_sf_db_speed', descriptors=config.DESCRIPTORS, 
     attribute_name='speed', nb_bins=config.NUM_BINS)
     print('bins shape: ', dataset[0][2].shape)
-    print('feats shape: ', dataset[0][1].shape)
+    print('feats: ', dataset[4][1])
+    print()
