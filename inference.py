@@ -72,7 +72,7 @@ class Model():
             # Extract features
             score = self.rcv.compute_attribute_score(audio_path)
             feature_arr = torch.full((self.resampled_length,), score)
-            features_norm = self._normalize_features(feature_arr)
+            features_norm = self._normalize_features(feature_arr) + bias
             
             # Encode
             z, x_mb = self.model.encode(x)
@@ -84,7 +84,6 @@ class Model():
             delta = 1.1036418676376343 - 0.09266293048858643
             print('score: ', -1 + (score - 0.09266293048858643) * 2 / delta)
             print('z_c: ', z_c.shape)
-            print('control dimension: ', z_c[:, 64, :])
             
             # Decode
             y, y_mb = self.model.decode(z_c)
@@ -98,6 +97,6 @@ class Model():
             return y
 
 if __name__ == "__main__":
-    model = Model('tb_logs/sfRAVE/version_1/checkpoints/epoch=3398-step=815760.ckpt')
+    model = Model('sfRAVE_v2_epoch476.ckpt')
     o = model.autoencode('ffxFootstepsGenData/steps_spe_0.20_con_0.00_woo_0.00_gra_0.00.wav', 
-                         'output_unbiased.wav', bias = 0)
+                         'output_bias_0.75.wav', bias = 0.75)
