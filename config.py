@@ -17,7 +17,7 @@ class Config:
     
     # VAE parameters
     CAPACITY = 64
-    LATENT_SIZE = 64
+    LATENT_SIZE = 128
     RATIOS = [4, 4, 4, 2]
     N_OUT = 2
     N_CHANNELS = 1
@@ -32,7 +32,7 @@ class Config:
     LEARNING_RATE = 1e-3
     BETA = 0.1  # For KL loss weighting
     DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
-    NUM_EPOCHS = 10000
+    NUM_EPOCHS = 50000
     
     # STFT parameters
     STFT_SCALES = [2048, 1024, 512, 256, 128]

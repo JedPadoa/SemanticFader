@@ -46,6 +46,10 @@ class JeffVAE(pl.LightningModule):
         
         # Enable manual optimization - REQUIRED for multiple optimizers
         self.automatic_optimization = False
+        self.lambda_dis = 0.1
+        self.lambda_delay = 10000
+        self.max_lambda = 0.5
+        self.register_buffer("step", torch.tensor(0, dtype=torch.long))
         
     def configure_optimizers(self):
         # Main model optimizer (encoder + decoder)
@@ -108,6 +112,14 @@ class JeffVAE(pl.LightningModule):
 
         return allarr_cls
     
+    def get_lambda(self):
+        step = self.step.item()
+        if step < self.lambda_delay:
+            return 0.0
+        else:
+            return (min(self.max_lambda,
+                        self.max_lambda * (step - self.lambda_delay) / self.lambda_delay))
+    
     def training_step(self, batch, batch_idx):
         # Get optimizers
         main_opt, dis_opt = self.optimizers()
@@ -125,6 +137,8 @@ class JeffVAE(pl.LightningModule):
         z, x_mb = self.encode(x)
         z, kl_loss = self.encoder.reparametrize(z)
         
+        lambda_dis = self.get_lambda()
+        
         # Get predictions from latent discriminator (for adversarial loss)
         attr_preds = self.latent_discriminator(z)
         attr_quantized = self.quantify(attributes, bin_values.clone().detach()).long()
@@ -136,8 +150,8 @@ class JeffVAE(pl.LightningModule):
         
         recon_loss = self.multiband_audio_distance(x_mb, y_mb)
         
-        beta = 0.1
-        main_loss = recon_loss['spectral_distance'] + beta * kl_loss + lat_dis_loss
+        beta = 0.2
+        main_loss = recon_loss['spectral_distance'] + beta * kl_loss + lambda_dis * lat_dis_loss
         
         # Manual backward and step
         self.manual_backward(main_loss)
@@ -169,8 +183,10 @@ class JeffVAE(pl.LightningModule):
         self.log('loss', main_loss, prog_bar=True)
         self.log('recon_loss', recon_loss['spectral_distance'], prog_bar=True)
         self.log('kl_loss', kl_loss, prog_bar=True)
-        self.log('adv_loss', lat_dis_loss, prog_bar=True)
+        self.log('adv_loss', lambda_dis * lat_dis_loss, prog_bar=True)
         self.log('dis_loss', dis_loss, prog_bar=True)
+        
+        self.step += 1
         
         # Return main loss for logging purposes
         return main_loss

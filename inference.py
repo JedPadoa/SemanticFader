@@ -98,6 +98,6 @@ class Model():
             return y
 
 if __name__ == "__main__":
-    model = Model('lightning_logs/version_1/checkpoints/epoch=9-step=2400.ckpt')
+    model = Model('tb_logs/sfRAVE/version_1/checkpoints/epoch=3398-step=815760.ckpt')
     o = model.autoencode('ffxFootstepsGenData/steps_spe_0.20_con_0.00_woo_0.00_gra_0.00.wav', 
                          'output_unbiased.wav', bias = 0)

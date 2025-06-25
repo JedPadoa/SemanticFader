@@ -12,6 +12,7 @@ RCVs/*
 ffxFootstepsGenData/*
 footsteps_sf_db_speed/*
 footsteps_embeddings_full-hfclap/*
+tb_logs/*
 
 
 # OS
@@ -34,3 +35,4 @@ checkpoint_test.ipynb
 
 #plots
 plots/*
+loss_plots/*
