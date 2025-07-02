@@ -26,6 +26,7 @@ test_fns/*
 training_scripts/*
 attr_score_analysis.py
 /legacy/*
+dblength.py
 
 # ipynb
 .ipynb_checkpoints/
