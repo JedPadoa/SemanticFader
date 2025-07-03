@@ -10,7 +10,7 @@ class Config:
     TEXTS = ['very fast footsteps', 'fast footsteps', 'footsteps']
     
     # latent discriminator parameters
-    NUM_ATTRIBUTES = 1
+    NUM_ATTRIBUTES = 2
     NUM_CLASSES = 16
     NUM_LAYERS = 3
     NUM_BINS = 16
@@ -37,10 +37,7 @@ class Config:
     # STFT parameters
     STFT_SCALES = [2048, 1024, 512, 256, 128]
     
-    # Paths
-    CHECKPOINT_DIR = "checkpoints"
-    DATA_DIR = "audio"
-    DESCRIPTORS = ["speed"]
+    DESCRIPTORS = ["speed", "grassiness"]
     
     #initialize components
     ENCODER = Encoder(data_size=N_BAND, capacity=CAPACITY, latent_size=LATENT_SIZE,
@@ -49,7 +46,7 @@ class Config:
     DECODER = Generator(latent_size=LATENT_SIZE + len(DESCRIPTORS), capacity=CAPACITY, data_size=N_BAND,
                    ratios=RATIOS, loud_stride=1, use_noise=False, n_channels=1)
     PQMF = PQMF(attenuation=60, n_band=N_BAND, polyphase=True, n_channels=1)
-    LATENT_DISCRIMINATOR = LatentDiscriminator(latent_size=LATENT_SIZE, num_attributes=NUM_ATTRIBUTES, num_classes=NUM_CLASSES, num_layers=NUM_LAYERS)
+    LATENT_DISCRIMINATOR = LatentDiscriminator(latent_size=LATENT_SIZE, num_attributes=len(DESCRIPTORS), num_classes=NUM_CLASSES, num_layers=NUM_LAYERS)
 
 # You can also have different configs for different environments
 class DevelopmentConfig(Config):

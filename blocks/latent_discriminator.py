@@ -3,7 +3,7 @@ import torch.nn as nn
 import cached_conv as cc
 
 class LatentDiscriminator(nn.Module):
-    def __init__(self, latent_size=128, num_attributes=1, num_classes=16, num_layers=2):
+    def __init__(self, latent_size=128, num_attributes=2, num_classes=16, num_layers=2):
         super(LatentDiscriminator, self).__init__()
         net = []
         for _ in range(num_layers):

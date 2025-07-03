@@ -103,7 +103,6 @@ class JeffVAE(pl.LightningModule):
     def quantify(self, allarr, bins):
         nz = allarr.shape[-1]
         allarr_cls = torch.zeros_like(allarr)
-
         for i in range(allarr.shape[1]): 
             # Make both tensors contiguous
             data = allarr[:, i, :].flatten() 

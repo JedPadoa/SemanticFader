@@ -43,6 +43,11 @@ class AudioDataset(torch.utils.data.Dataset):
                     continue
                 sample = pickle.loads(value)
                 feats = sample[self.attribute_name]
+                
+                # Convert to numpy if it's a tensor
+                if isinstance(feats, torch.Tensor):
+                    feats = feats.numpy()
+                
                 min_val = min(min_val, np.min(feats))
                 max_val = max(max_val, np.max(feats))
 
@@ -65,7 +70,7 @@ class AudioDataset(torch.utils.data.Dataset):
                     if key == b"__len__":
                         continue
                     sample = pickle.loads(value)
-                    feats = np.array(sample[self.attribute_name], dtype=np.float32)
+                    feats = np.array(sample[self.attribute_name][i], dtype=np.float32)
 
                     if delta == 0:
                         norm_feats = np.zeros_like(feats, dtype=np.float32)
@@ -102,13 +107,13 @@ class AudioDataset(torch.utils.data.Dataset):
         else:
             norm_feats_np = -1 + (feats_np - self.min_val) * 2 / delta
             
-        feats = torch.from_numpy(norm_feats_np).unsqueeze(0)
+        feats = torch.from_numpy(norm_feats_np)
         bins = torch.tensor(self.bin_values, dtype=torch.float32)
         return audio, feats, bins
     
 if __name__ == "__main__":
-    dataset = AudioDataset(db_path='footsteps_sf_db_speed', descriptors=config.DESCRIPTORS, 
-    attribute_name='speed', nb_bins=config.NUM_BINS)
+    dataset = AudioDataset(db_path='footsteps_sf_db_speed_grass', descriptors=config.DESCRIPTORS, 
+    attribute_name='attributes', nb_bins=config.NUM_BINS)
     print('bins shape: ', dataset[0][2].shape)
     print('feats: ', dataset[4][1])
-    print()
+    print('feats shape: ', dataset[4][1].shape)
