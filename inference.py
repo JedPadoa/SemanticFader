@@ -110,6 +110,6 @@ class Model():
             return y
 
 if __name__ == "__main__":
-    model = Model('sfRAVE-128k.ckpt')
+    model = Model('sfRAVE_v2-60k.ckpt')
     o = model.autoencode('ffxFootstepsGenData/steps_spe_0.20_con_1.00_woo_0.00_gra_0.00.wav', 
-                         'audio_tests/sf_rave_sg_128k/output_bias_grass_2.0.wav', bias = 2.0)
+                         'audio_tests/sf_rave_sg_v2_60k/output_bias_grass_2.0.wav', bias = 2.0)

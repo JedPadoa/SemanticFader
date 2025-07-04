@@ -16,7 +16,7 @@ class Config:
     NUM_BINS = 16
     
     # VAE parameters
-    CAPACITY = 64
+    CAPACITY = 96
     LATENT_SIZE = 128
     RATIOS = [4, 4, 4, 2]
     N_OUT = 2
@@ -44,7 +44,7 @@ class Config:
                       ratios=RATIOS, n_out=N_OUT, sample_norm=False, repeat_layers=1, n_channels=1)
     VE = VariationalEncoder(ENCODER)
     DECODER = Generator(latent_size=LATENT_SIZE + len(DESCRIPTORS), capacity=CAPACITY, data_size=N_BAND,
-                   ratios=RATIOS, loud_stride=1, use_noise=False, n_channels=1)
+                   ratios=RATIOS, loud_stride=1, use_noise=True, n_channels=1)
     PQMF = PQMF(attenuation=60, n_band=N_BAND, polyphase=True, n_channels=1)
     LATENT_DISCRIMINATOR = LatentDiscriminator(latent_size=LATENT_SIZE, num_attributes=len(DESCRIPTORS), num_classes=NUM_CLASSES, num_layers=NUM_LAYERS)
 
