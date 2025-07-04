@@ -29,8 +29,11 @@ class Model():
             learning_rate=1e-3
         )
         
-        self.rcv = RegCAV()
-        self.rcv.load_rcv('RCVs/speed_rcv.pkl')
+        self.rcv_speed = RegCAV()
+        self.rcv_speed.load_rcv('RCVs/speed_rcv.pkl')
+        self.rcv_grass = RegCAV()
+        self.rcv_grass.load_rcv('RCVs/grass_rcv.pkl')
+        
         
         self.target_len = int(config.AUDIO_LENGTH * config.SAMPLING_RATE)
         self.resampled_length = math.ceil(self.target_len / (config.N_BAND * np.prod(config.RATIOS)))
@@ -42,7 +45,7 @@ class Model():
         self.model.to(self.device)
         self.model.eval()
         
-    def _normalize_features(self, features, min_val = 0.09266293048858643, max_val = 1.1036418676376343):
+    def _normalize_features(self, features, min_val = -0.12417352199554443, max_val = 1.1036418676376343):
         feats_np = np.array(features, dtype=np.float32)
         delta = max_val - min_val
         if delta == 0:
@@ -66,24 +69,34 @@ class Model():
         with torch.no_grad():
             # Load and preprocess audio
             x = load_audio_mono(audio_path)
-            print(x.shape)
             x = x.to(self.device)
             
             # Extract features
-            score = self.rcv.compute_attribute_score(audio_path)
-            feature_arr = torch.full((self.resampled_length,), score)
-            features_norm = self._normalize_features(feature_arr) + bias
+            score_speed = self.rcv_speed.compute_attribute_score(audio_path)
+            score_grass = self.rcv_grass.compute_attribute_score(audio_path)
+            
+            feature_arr = torch.stack([
+                torch.full((self.resampled_length,), score_speed, dtype=torch.float32),
+                torch.full((self.resampled_length,), score_grass, dtype=torch.float32)
+            ])
+            
+            features_norm = self._normalize_features(feature_arr)
+            
+            print('original speed value: ', features_norm[0][0])
+            print('original grass value: ', features_norm[1][0])
+            print('bias: ', bias)
+            features_norm[1] += bias
+            
             
             # Encode
             z, x_mb = self.model.encode(x)
             z_rp, kl_loss = self.model.encoder.reparametrize(z)
             
             # Concatenate latent with features
-            z_c = torch.cat([z_rp, features_norm.unsqueeze(0).unsqueeze(0)], dim=1)
+            z_c = torch.cat([z_rp, features_norm.unsqueeze(0)], dim=1)
             
-            delta = 1.1036418676376343 - 0.09266293048858643
-            print('score: ', -1 + (score - 0.09266293048858643) * 2 / delta)
-            print('z_c: ', z_c.shape)
+            #delta = 1.1036418676376343 - 0.09266293048858643
+            #print('score: ', -1 + (score - 0.09266293048858643) * 2 / delta)
             
             # Decode
             y, y_mb = self.model.decode(z_c)
@@ -97,6 +110,6 @@ class Model():
             return y
 
 if __name__ == "__main__":
-    model = Model('sfRAVE_v2_epoch476.ckpt')
-    o = model.autoencode('ffxFootstepsGenData/steps_spe_0.20_con_0.00_woo_0.00_gra_0.00.wav', 
-                         'output_bias_0.75.wav', bias = 0.75)
+    model = Model('sfRAVE-128k.ckpt')
+    o = model.autoencode('ffxFootstepsGenData/steps_spe_0.20_con_1.00_woo_0.00_gra_0.00.wav', 
+                         'audio_tests/sf_rave_sg_128k/output_bias_grass_2.0.wav', bias = 2.0)
