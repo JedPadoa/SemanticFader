@@ -283,7 +283,11 @@ class Generator(nn.Module):
         loudness = loudness.reshape(x.shape[0], 1, -1)
 
         #waveform = torch.tanh(waveform) * mod_sigmoid(loudness)
-        waveform = torch.tanh(waveform)
+        #waveform = torch.tanh(waveform)
+        
+        epsilon = 1e-2                       # –60 dB floor
+        gate    = torch.clamp(mod_sigmoid(loudness), min=epsilon)
+        waveform = torch.tanh(waveform) * gate
         
         if self.warmed_up and self.use_noise:
             waveform = waveform + noise
