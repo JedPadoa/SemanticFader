@@ -23,8 +23,8 @@ import traceback
 def create_sf_lmdb(
     audio_dir: str = ".",
     db_path: str = "footsteps_sf_db",
-    attribute_name: str = "",
-    rcv_file: str = None,
+    attribute_names: list = [],
+    rcv_files: list = [],
     resampled_length: int = 100,
     clap_ckpt: str = "laion/clap-htsat-fused"
 ) -> Optional[str]:
@@ -39,8 +39,12 @@ def create_sf_lmdb(
 
     all_files = [f for f in os.listdir(audio_dir) if f.endswith('.wav')]
     
-    regCav = RegCAV()
-    regCav.load_rcv(rcv_file)
+    regCav_speed = RegCAV()
+    regCav_speed.load_rcv(rcv_files[0])
+    regCav_grass = RegCAV()
+    regCav_grass.load_rcv(rcv_files[1])
+    
+    
 
     # 4. Create LMDB dataset
     if os.path.exists(db_path):
@@ -59,13 +63,20 @@ def create_sf_lmdb(
                 # Load raw audio using dummy_load (at 44.1kHz from config)
                 raw_audio_44k = dummy_load(f'{audio_dir}/{audio_file}', target_len)
                 
-                score = regCav.compute_attribute_score(f'{audio_dir}/{audio_file}')
-                attribute_score_tensor = torch.full((resampled_length,), score).numpy()
+                scores = []
+
+                score_speed = regCav_speed.compute_attribute_score(f'{audio_dir}/{audio_file}')
+                score_grass = regCav_grass.compute_attribute_score(f'{audio_dir}/{audio_file}')
+                
+                attribute_score_tensor = torch.stack([
+                torch.full((resampled_length,), score_speed, dtype=torch.float32),
+                torch.full((resampled_length,), score_grass, dtype=torch.float32)
+                ])
 
                 # Store the sample
                 sample = {
                     "audio": raw_audio_44k,
-                    attribute_name: attribute_score_tensor,
+                    "attributes": attribute_score_tensor,
                     'file_name': audio_file
                 }
                 
@@ -94,13 +105,13 @@ def main():
     # --- Configuration ---
     target_len  = int(config.AUDIO_LENGTH * config.SAMPLING_RATE)
     AUDIO_DIR = "ffxFootstepsGenData"  # Directory containing generated audio files
-    DB_PATH = "footsteps_sf_db"      # Path for the output LMDB database
-    RCV = "RCVs/speed_rcv.pkl"  
-    ATTRIBUTE_NAME = "speed"
+    DB_PATH = "footsteps_sf_db_speed_grass"      # Path for the output LMDB database
+    RCV_FILES = ["RCVs/speed_rcv.pkl", "RCVs/grass_rcv.pkl"]  
+    ATTRIBUTE_NAMES = ["speed", "grassiness"]
     RESAMPLED_LENGTH = math.ceil(target_len / (config.N_BAND * np.prod(config.RATIOS)))
     # ---------------------
     
-    db_path_created = create_sf_lmdb(AUDIO_DIR, DB_PATH, ATTRIBUTE_NAME, RCV, RESAMPLED_LENGTH)
+    db_path_created = create_sf_lmdb(AUDIO_DIR, DB_PATH, ATTRIBUTE_NAMES, RCV_FILES, RESAMPLED_LENGTH)
     
     if db_path_created:
         print(f"\nProcessing Complete. Database is ready at: {db_path_created}")

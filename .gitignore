@@ -11,8 +11,9 @@ datasets_old/*
 RCVs/*
 ffxFootstepsGenData/*
 footsteps_sf_db_speed/*
+footsteps_sf_db_speed_grass/*
 footsteps_embeddings_full-hfclap/*
-tb_logs/*
+tb_logs/
 audio_tests/*
 footsteps_full-hfclap/*
 
@@ -27,6 +28,7 @@ test_fns/*
 training_scripts/*
 attr_score_analysis.py
 /legacy/*
+dblength.py
 
 # ipynb
 .ipynb_checkpoints/
@@ -38,7 +40,6 @@ checkpoint_test.ipynb
 #plots
 plots/*
 loss_plots/*
-
+loss_plots_jul_4/*
 thesis_workspace.code-workspace
-
 *.png

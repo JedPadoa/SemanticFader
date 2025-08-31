@@ -17,7 +17,8 @@ class JeffVAE(pl.LightningModule):
                  input_mode: str = "pqmf",
                  output_mode: str = "pqmf",
                  learning_rate: float = 1e-3,  # Add learning rate parameter
-                 verbose: bool = False
+                 verbose: bool = False,
+                 dis_update_every: int = 3
                  ):
         super().__init__() 
         self.encoder = encoder
@@ -43,12 +44,13 @@ class JeffVAE(pl.LightningModule):
         self.learning_rate = learning_rate
         self.n_channels = n_channels
         self.verbose = verbose
+        self.dis_update_every = dis_update_every
         
         # Enable manual optimization - REQUIRED for multiple optimizers
         self.automatic_optimization = False
         self.lambda_dis = 0.1
         self.lambda_delay = 10000
-        self.max_lambda = 0.5
+        self.max_lambda = 0.3
         self.register_buffer("step", torch.tensor(0, dtype=torch.long))
         
     def configure_optimizers(self):
@@ -103,7 +105,6 @@ class JeffVAE(pl.LightningModule):
     def quantify(self, allarr, bins):
         nz = allarr.shape[-1]
         allarr_cls = torch.zeros_like(allarr)
-
         for i in range(allarr.shape[1]): 
             # Make both tensors contiguous
             data = allarr[:, i, :].flatten() 
@@ -120,75 +121,82 @@ class JeffVAE(pl.LightningModule):
             return (min(self.max_lambda,
                         self.max_lambda * (step - self.lambda_delay) / self.lambda_delay))
     
+    @staticmethod
+    def _set_requires_grad(module: nn.Module, flag: bool):
+        for p in module.parameters():
+            p.requires_grad_(flag)
+
     def training_step(self, batch, batch_idx):
-        # Get optimizers
         main_opt, dis_opt = self.optimizers()
-        
         x, attributes, bin_values = batch
-        
-        # ===== MAIN MODEL TRAINING =====
+
+        # ========================================================
+        # 1) MAIN OPTIMISER  (encoder + decoder)
+        # ========================================================
         main_opt.zero_grad()
-        
         self.latent_discriminator.eval()
-        self.encoder.train()
-        self.decoder.train()
-        
-        # Your existing main training logic
+        self.encoder.train(); self.decoder.train()
+
         z, x_mb = self.encode(x)
         z, kl_loss = self.encoder.reparametrize(z)
-        
-        lambda_dis = self.get_lambda()
-        
-        # Get predictions from latent discriminator (for adversarial loss)
-        attr_preds = self.latent_discriminator(z)
-        attr_quantized = self.quantify(attributes, bin_values.clone().detach()).long()
-        lat_dis_loss = -self.get_attr_loss(attr_preds, attr_quantized)
-        
-        z_c = torch.cat([z, attributes], dim=1)
-        y, y_mb = self.decode(z_c)
-        y_mb = y_mb[..., :x_mb.shape[-1]]
-        
-        recon_loss = self.multiband_audio_distance(x_mb, y_mb)
-        
-        beta = 0.2
-        main_loss = recon_loss['spectral_distance'] + beta * kl_loss + lambda_dis * lat_dis_loss
-        
-        # Manual backward and step
+
+        lambda_dis   = self.get_lambda()
+        attr_preds   = self.latent_discriminator(z)
+        attr_quant   = self.quantify(attributes, bin_values.clone().detach()).long()
+        lat_dis_loss = -self.get_attr_loss(attr_preds, attr_quant)
+
+        z_c          = torch.cat([z, attributes], dim=1)
+        y, y_mb      = self.decode(z_c)
+        y_mb         = y_mb[..., :x_mb.shape[-1]]
+
+        recon_loss   = self.multiband_audio_distance(x_mb, y_mb)
+        beta         = 0.2
+        main_loss    = recon_loss['spectral_distance'] + beta * kl_loss + lambda_dis * lat_dis_loss
+
         self.manual_backward(main_loss)
+        self.clip_gradients(main_opt, 1.0, "norm")
         main_opt.step()
-        
-        # ===== LATENT DISCRIMINATOR TRAINING =====
-        dis_opt.zero_grad()
-        
-        self.encoder.eval()
-        self.decoder.eval()
-        self.latent_discriminator.train()
-        
-        # Encode (with no_grad since we don't want to update encoder)
-        with torch.no_grad():
-            z, _ = self.encode(x)
-            z, _ = self.encoder.reparametrize(z)
-        
-        attr_preds = self.latent_discriminator(z)
-        attr_quantized = self.quantify(attributes, bin_values.clone().detach()).long()
-        
-        # Discriminator wants to correctly classify attributes
-        dis_loss = self.get_attr_loss(attr_preds, attr_quantized)
-        
-        # Manual backward and step
-        self.manual_backward(dis_loss)
-        dis_opt.step()
-        
-        # Log metrics
-        self.log('loss', main_loss, prog_bar=True)
-        self.log('recon_loss', recon_loss['spectral_distance'], prog_bar=True)
-        self.log('kl_loss', kl_loss, prog_bar=True)
-        self.log('adv_loss', lambda_dis * lat_dis_loss, prog_bar=True)
-        self.log('dis_loss', dis_loss, prog_bar=True)
+
+        # ========================================================
+        # 2) DISCRIMINATOR  (update only every k steps)
+        # ========================================================
+        update_dis = (self.global_step % self.dis_update_every == 0)
+
+        if update_dis:
+            # un-freeze
+            self._set_requires_grad(self.latent_discriminator, True)
+
+            dis_opt.zero_grad()
+            self.encoder.eval(); self.decoder.eval(); self.latent_discriminator.train()
+
+            with torch.no_grad():
+                z, _ = self.encode(x)
+                z, _ = self.encoder.reparametrize(z)
+
+            attr_preds = self.latent_discriminator(z)
+            attr_quant = self.quantify(attributes, bin_values.clone().detach()).long()
+            dis_loss   = self.get_attr_loss(attr_preds, attr_quant)
+
+            self.manual_backward(dis_loss)
+            self.clip_gradients(dis_opt, 1.0, "norm")
+            dis_opt.step()
+        else:
+            # keep weights frozen; still compute loss for logging
+            self._set_requires_grad(self.latent_discriminator, False)
+            with torch.no_grad():
+                dis_loss = torch.tensor(0.0, device=self.device)
+
+        # -------------- logging -----------------
+        self.log_dict({
+            'loss'      : main_loss,
+            'recon_loss': recon_loss['spectral_distance'],
+            'kl_loss'   : kl_loss,
+            'adv_loss'  : lambda_dis * lat_dis_loss,
+            'dis_loss'  : dis_loss,
+        }, prog_bar=True)
         
         self.step += 1
-        
-        # Return main loss for logging purposes
+
         return main_loss
     
     def validation_step(self, batch, batch_idx):
