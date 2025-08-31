@@ -17,7 +17,7 @@ class Config:
     
     # VAE parameters
     CAPACITY = 64
-    LATENT_SIZE = 128
+    LATENT_SIZE = 64
     RATIOS = [4, 4, 4, 2]
     N_OUT = 2
     N_CHANNELS = 1

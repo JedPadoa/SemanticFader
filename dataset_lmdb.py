@@ -1,4 +1,3 @@
-# dataset_lmdb.py
 import lmdb, pickle, torch
 import numpy as np
 from config import Config as config

@@ -14,6 +14,7 @@ footsteps_sf_db_speed/*
 footsteps_embeddings_full-hfclap/*
 tb_logs/*
 audio_tests/*
+footsteps_full-hfclap/*
 
 
 # OS
@@ -37,3 +38,7 @@ checkpoint_test.ipynb
 #plots
 plots/*
 loss_plots/*
+
+thesis_workspace.code-workspace
+
+*.png

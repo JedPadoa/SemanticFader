@@ -37,7 +37,7 @@ class Model():
         
         # Load state dict
         state_dict = torch.load(model_path, map_location=self.device)['state_dict']
-        self.model.load_state_dict(state_dict)
+        self.model.load_state_dict(state_dict, strict=False)
         
         self.model.to(self.device)
         self.model.eval()
@@ -97,6 +97,6 @@ class Model():
             return y
 
 if __name__ == "__main__":
-    model = Model('sfRAVE_v2_epoch476.ckpt')
-    o = model.autoencode('ffxFootstepsGenData/steps_spe_0.20_con_0.00_woo_0.00_gra_0.00.wav', 
+    model = Model('checkpoint_1.ckpt')
+    o = model.autoencode('/Users/jeddo/Documents/CLAP attr_comp analysis/steps_spe_0.20_con_0.00_woo_0.00_gra_0.00.wav', 
                          'output_bias_0.75.wav', bias = 0.75)

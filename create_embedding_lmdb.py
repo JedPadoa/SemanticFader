@@ -11,7 +11,7 @@ from typing import List, Tuple, Dict, Optional
 import librosa
 import torch
 from transformers import ClapModel, ClapProcessor
-from fs_lmdb import LMDBFootstepDataset
+from fs_embedding_lmdb import LMDBFootstepDataset
 from tqdm import tqdm
 
 def find_footstep_files(base_dir: str = ".") -> List[str]:
@@ -200,7 +200,7 @@ def main():
     print("=== Footstep Multi-Attribute LMDB Dataset Creator ===\n")
     
     # Configuration
-    AUDIO_DIR = "ffxFootstepsGenData"  # Change this to your audio directory
+    AUDIO_DIR = "/Users/jeddo/Documents/CLAP attr_comp analysis/ffxFootstepsGenData"  # Change this to your audio directory
     DB_PATH = "footsteps_full-hfclap"
     
     # Create the dataset
